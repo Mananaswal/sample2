@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentor Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        .header {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+        }
+        .container {
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h2 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        textarea, input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background-color: #f0f0f0;
+        }
+        .message {
+            margin-top: 15px;
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Mentor Dashboard</h1>
+    </div>
+    <div class="container">
+        <!-- Assigned Students Section -->
+        <h2>Assigned Students</h2>
+        <table id="mentor-table">
+            <thead>
+                <tr>
+                    <th>Student Name</th>
+                    <th>Project Details Link</th>
+                    <th>Completed Project Link</th>
+                    <th>Remarks</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Table rows will be dynamically populated -->
+            </tbody>
+        </table>
+
+        <div id="success-message" class="message"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = "http://localhost:5001";
+
+        // Fetch and display students from the backend
+        async function fetchStudents() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/students`);
+                const students = await response.json();
+
+                const tableBody = document.querySelector("#mentor-table tbody");
+                tableBody.innerHTML = ""; // Clear table before appending rows
+
+                students.forEach((student) => {
+                    const row = `
+                        <tr>
+                            <td>${student.studentName}</td>
+                            <td>
+                                <textarea id="project-details-${student._id}" rows="2" ${student.projectDetails ? "disabled" : ""}>
+                                    ${student.projectDetails || ""}
+                                </textarea>
+                            </td>
+                            <td>
+                                <textarea id="completed-project-${student._id}" rows="2" ${student.completedLink ? "disabled" : ""}>
+                                    ${student.completedLink || ""}
+                                </textarea>
+                            </td>
+                            <td>
+                                <textarea id="remarks-${student._id}" rows="2" ${student.mentorRemarks ? "disabled" : ""}>
+                                    ${student.mentorRemarks || ""}
+                                </textarea>
+                            </td>
+                            <td>
+                                <span id="status-${student._id}">${student.status}</span>
+                            </td>
+                            <td>
+                                <button onclick="saveStudentData('${student._id}')" ${student.status === "Completed" ? "disabled" : ""}>
+                                    Save
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error("Error fetching students:", error);
+            }
+        }
+
+        // Save or update student data
+        async function saveStudentData(studentId) {
+            const projectDetails = document.getElementById(`project-details-${studentId}`).value.trim();
+            const completedLink = document.getElementById(`completed-project-${studentId}`).value.trim();
+            const remarks = document.getElementById(`remarks-${studentId}`).value.trim();
+
+            if (!projectDetails || !completedLink || !remarks) {
+                alert("All fields are required.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/save-student-data`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        studentName: studentId,
+                        projectDetails,
+                        completedLink,
+                        mentorRemarks: remarks,
+                    }),
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById(`status-${studentId}`).textContent = "Completed";
+                    document.getElementById(`project-details-${studentId}`).disabled = true;
+                    document.getElementById(`completed-project-${studentId}`).disabled = true;
+                    document.getElementById(`remarks-${studentId}`).disabled = true;
+                    document.querySelector(`button[onclick="saveStudentData('${studentId}')"]`).disabled = true;
+
+                    const successMessage = document.getElementById("success-message");
+                    successMessage.textContent = result.message;
+                    setTimeout(() => {
+                        successMessage.textContent = "";
+                    }, 3000);
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error("Error saving student data:", error);
+                alert("Failed to save student data.");
+            }
+        }
+
+        // Load data on page load
+        document.addEventListener("DOMContentLoaded", fetchStudents);
+    </script>
+</body>
+</html>
